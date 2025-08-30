@@ -13,13 +13,20 @@ on:
         description: "Region or zone (e.g., us-central1 or us-central1-a)"
         required: true
       namespace:
-        description: "Kubernetes namespace to query"
+        description: "Kubernetes namespace"
         required: true
         default: "prod"
       deployment:
-        description: "Deployment to restart/scale"
+        description: "Deployment name to act on"
         required: true
-        default: "nginx"
+      replicas:
+        description: "Number of replicas (used if action_type=scale)"
+        required: false
+        default: "3"
+      action_type:
+        description: "Action to perform: restart or scale"
+        required: true
+        default: "restart"
 
 jobs:
   kubectl-smoke:
@@ -39,11 +46,10 @@ jobs:
           location:     ${{ github.event.inputs.location }}
           project_id:   ${{ github.event.inputs.project_id }}
 
-      - name: kubectl get pods / deployments
+      - name: Show current pods and deployments
         run: |
           kubectl get pods -n "${{ github.event.inputs.namespace }}" -o wide || true
           kubectl get deployment -n "${{ github.event.inputs.namespace }}" -o wide || true
-
 
       - name: Restart deployment
         if: ${{ github.event.inputs.action_type == 'restart' }}
