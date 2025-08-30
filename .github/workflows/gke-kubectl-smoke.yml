@@ -44,12 +44,22 @@ jobs:
           kubectl get pods -n "${{ github.event.inputs.namespace }}" -o wide || true
           kubectl get deployment -n "${{ github.event.inputs.namespace }}" -o wide || true
 
-      - name: Restart deployment
-        run: |
-          kubectl -n "${{ github.event.inputs.namespace }}" rollout restart deployment/${{ github.event.inputs.deployment }}
-          kubectl -n "${{ github.event.inputs.namespace }}" rollout status deployment/${{ github.event.inputs.deployment }}
 
-      - name: Scale deployment to 3 replicas
+      - name: Restart deployment
+        if: ${{ github.event.inputs.action_type == 'restart' }}
         run: |
-          kubectl -n "${{ github.event.inputs.namespace }}" scale deployment/${{ github.event.inputs.deployment }} --replicas=3
-          kubectl -n "${{ github.event.inputs.namespace }}" get deployment/${{ github.event.inputs.deployment }}
+          NS="${{ github.event.inputs.namespace }}"
+          DEP="${{ github.event.inputs.deployment }}"
+          echo "Restarting deployment $DEP in namespace $NS"
+          kubectl -n "$NS" rollout restart deployment/$DEP
+          kubectl -n "$NS" rollout status deployment/$DEP --timeout=5m
+
+      - name: Scale deployment
+        if: ${{ github.event.inputs.action_type == 'scale' }}
+        run: |
+          NS="${{ github.event.inputs.namespace }}"
+          DEP="${{ github.event.inputs.deployment }}"
+          REPLICAS="${{ github.event.inputs.replicas }}"
+          echo "Scaling deployment $DEP in namespace $NS to $REPLICAS replicas"
+          kubectl -n "$NS" scale deployment/$DEP --replicas=$REPLICAS
+          kubectl -n "$NS" get deployment/$DEP
