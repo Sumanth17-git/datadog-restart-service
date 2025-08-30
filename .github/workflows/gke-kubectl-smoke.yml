@@ -1,36 +1,41 @@
-# This is a basic workflow to help you get started with Actions
+name: GKE kubectl smoke test (SA JSON)
 
-name: CI
-
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      project_id:
+        description: "GCP Project ID"
+        required: true
+      cluster:
+        description: "GKE cluster name"
+        required: true
+      location:
+        description: "Region or zone (e.g., us-central1 or us-central1-a)"
+        required: true
+      namespace:
+        description: "Kubernetes namespace to query"
+        required: true
+        default: "prod"
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  kubectl-smoke:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    permissions:
+      contents: read
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Auth to Google Cloud (JSON key)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_JSON }}
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ github.event.inputs.cluster }}
+          location:     ${{ github.event.inputs.location }}
+          project_id:   ${{ github.event.inputs.project_id }}
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: kubectl get pods / deployments
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          kubectl get pods -n "${{ github.event.inputs.namespace }}" -o wide || true
+          kubectl get deployment -n "${{ github.event.inputs.namespace }}" -o wide || true
