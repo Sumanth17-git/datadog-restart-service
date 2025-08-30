@@ -16,6 +16,10 @@ on:
         description: "Kubernetes namespace to query"
         required: true
         default: "prod"
+      deployment:
+        description: "Deployment to restart/scale"
+        required: true
+        default: "nginx"
 
 jobs:
   kubectl-smoke:
@@ -40,12 +44,12 @@ jobs:
           kubectl get pods -n "${{ github.event.inputs.namespace }}" -o wide || true
           kubectl get deployment -n "${{ github.event.inputs.namespace }}" -o wide || true
 
-      - name: Restart nginx deployment
+      - name: Restart deployment
         run: |
-          kubectl -n prod rollout restart deployment/memory-service
-          kubectl -n prod rollout status deployment/memory-service
+          kubectl -n "${{ github.event.inputs.namespace }}" rollout restart deployment/${{ github.event.inputs.deployment }}
+          kubectl -n "${{ github.event.inputs.namespace }}" rollout status deployment/${{ github.event.inputs.deployment }}
 
-      - name: Scale nginx deployment to 3 replicas
+      - name: Scale deployment to 3 replicas
         run: |
-          kubectl -n prod scale deployment/memory-service --replicas=3 
-          kubectl -n prod get deployment/memory-service
+          kubectl -n "${{ github.event.inputs.namespace }}" scale deployment/${{ github.event.inputs.deployment }} --replicas=3
+          kubectl -n "${{ github.event.inputs.namespace }}" get deployment/${{ github.event.inputs.deployment }}
