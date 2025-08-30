@@ -39,3 +39,13 @@ jobs:
         run: |
           kubectl get pods -n "${{ github.event.inputs.namespace }}" -o wide || true
           kubectl get deployment -n "${{ github.event.inputs.namespace }}" -o wide || true
+
+      - name: Restart nginx deployment
+        run: |
+          kubectl -n prod rollout restart deployment/memory-service
+          kubectl -n prod rollout status deployment/memory-service
+
+      - name: Scale nginx deployment to 3 replicas
+        run: |
+          kubectl -n prod scale deployment/memory-service --replicas=3 
+          kubectl -n prod get deployment/memory-service
