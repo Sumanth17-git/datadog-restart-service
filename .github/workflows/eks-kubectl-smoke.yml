@@ -1,0 +1,78 @@
+name: EKS kubectl smoke test (Access Keys)
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_region:
+        description: "AWS Region (e.g., us-east-1)"
+        required: true
+        default: "us-east-1"
+      cluster:
+        description: "EKS cluster name"
+        required: true
+        default: "eks-cluster"
+      namespace:
+        description: "Kubernetes namespace"
+        required: true
+        default: "prod"
+      deployment:
+        description: "Deployment name to act on"
+        required: true
+      replicas:
+        description: "Number of replicas (used if action_type=scale)"
+        required: false
+        default: "3"
+      action_type:
+        description: "Action to perform: restart or scale"
+        required: true
+        default: "restart"
+
+jobs:
+  eks-kubectl:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ github.event.inputs.aws_region }}
+
+      - name: Get kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig \
+            --region "${{ github.event.inputs.aws_region }}" \
+            --name   "${{ github.event.inputs.cluster }}"
+
+      - name: Show current pods and deployments
+        run: |
+          NS="${{ github.event.inputs.namespace }}"
+          echo "Listing pods and deployments in namespace $NS"
+          kubectl get pods -n "$NS" -o wide || true
+          kubectl get deployment -n "$NS" -o wide || true
+
+      - name: Restart deployment
+        if: ${{ github.event.inputs.action_type == 'restart' }}
+        run: |
+          NS="${{ github.event.inputs.namespace }}"
+          DEP="${{ github.event.inputs.deployment }}"
+          echo "Restarting deployment $DEP in namespace $NS"
+          kubectl -n "$NS" rollout restart deployment/$DEP
+          kubectl -n "$NS" rollout status deployment/$DEP --timeout=5m
+
+      - name: Scale deployment
+        if: ${{ github.event.inputs.action_type == 'scale' }}
+        run: |
+          NS="${{ github.event.inputs.namespace }}"
+          DEP="${{ github.event.inputs.deployment }}"
+          REPLICAS="${{ github.event.inputs.replicas }}"
+          echo "Scaling deployment $DEP in namespace $NS to $REPLICAS replicas"
+          kubectl -n "$NS" scale deployment/$DEP --replicas="$REPLICAS"
+          kubectl -n "$NS" get deployment/$DEP
