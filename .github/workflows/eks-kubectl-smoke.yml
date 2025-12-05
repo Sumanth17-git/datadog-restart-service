@@ -10,7 +10,7 @@ on:
       cluster:
         description: "EKS cluster name"
         required: true
-        default: "awseks-cluster"
+        default: "eks-cluster"
       namespace:
         description: "Kubernetes namespace"
         required: true
